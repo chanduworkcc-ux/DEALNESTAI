@@ -1,0 +1,6 @@
+{
+  "name": "DealNest - Compare Shopping, Food & Grocery Deals",
+  "description": "Compare shopping prices, food offers, quick-commerce groceries, coupons, and discounts across your favorite platforms with real-time deal scoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

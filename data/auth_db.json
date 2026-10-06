@@ -1,0 +1,195 @@
+{
+  "admin": {
+    "hash": "7541ea4dc15e94ee9ab0f9723ab50c677ed9ac4a8394e30e2e93b4fabaa25fc9",
+    "salt": "df7416e076197a4e557798c979780d9f",
+    "needsChange": true,
+    "lastChanged": 1791295785426
+  },
+  "secretCodes": [
+    {
+      "id": "sc_62a6a8362776da31",
+      "code": "NEST-7701-VIPX",
+      "codeHash": "7424a78c8b651cd496b2dfc2eef0c3072cec2f56aef3131d6f33736b23f4a989",
+      "salt": "dc917cb5e60633eb3b59668a",
+      "status": "used",
+      "createdAt": 1791293680736,
+      "usedAt": 1791293680738,
+      "usedBy": "TestUser",
+      "note": "VIP Access Pass #1"
+    },
+    {
+      "id": "sc_e64cd6b6d4a0afa8",
+      "code": "NEST-8822-PRO9",
+      "codeHash": "5f280be9e953f32a321802452a74ee13fb7c25582469778dad070015653e60bb",
+      "salt": "0d8b179d567052eb0321e17e",
+      "status": "active",
+      "createdAt": 1791293680736,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Pro Member Pass #2"
+    },
+    {
+      "id": "sc_49cad3971df2b38e",
+      "code": "NEST-4411-DEMO",
+      "codeHash": "67b5c7e2804cf384563cfed5e6c147701d0c51c8600d7cfb62611431d1cf9921",
+      "salt": "5aa4d069a7da8154957192a5",
+      "status": "active",
+      "createdAt": 1791293680736,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Early Adopter Pass #3"
+    },
+    {
+      "id": "sc_f256de0143a0bcdf",
+      "code": "NEST-9900-BETA",
+      "codeHash": "57330df4a9ebfc43d5605f065ebe8bb9ee192287c7a62191731826b0808fdf41",
+      "salt": "004fd6c0ff0d20ebbf5b0bab",
+      "status": "active",
+      "createdAt": 1791293680736,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Beta Access Pass #4"
+    },
+    {
+      "id": "sc_95c81639de1f2ba9",
+      "code": "PASS-XQQF-G73D",
+      "codeHash": "bf486cffb3e0a6c94efdff73287bac2e2fa388fdb8f3e3fdfc125e8f5b27df01",
+      "salt": "1fea6d876271b88df8de1a50",
+      "status": "used",
+      "createdAt": 1791294202356,
+      "usedAt": 1791294202360,
+      "usedBy": "AliceTester",
+      "note": "Verification Batch"
+    },
+    {
+      "id": "sc_4e26ba7eea141370",
+      "code": "PASS-DRGQ-QW9U",
+      "codeHash": "7f1cab74c39a836710863bc33e762cc28b7c8d5f7c8d7abb56fc205c99b5a265",
+      "salt": "13a2396bb21783a522cb1925",
+      "status": "active",
+      "createdAt": 1791294202356,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Verification Batch"
+    },
+    {
+      "id": "sc_17fe8a69088dede7",
+      "code": "PASS-F2MH-MNE3",
+      "codeHash": "e276b0d0fcf88b612191abe85cb819ad5084319b1b160da1c58164b0b5d815ce",
+      "salt": "3198e5a4904245863d424667",
+      "status": "active",
+      "createdAt": 1791294202356,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Verification Batch"
+    },
+    {
+      "id": "sc_af5f6c9fd4c7eb9e",
+      "code": "TEST-69EU-A448",
+      "codeHash": "d862688c15861b71b06ce889c75af843eb746de8376bdf1f29f94060f7c0f329",
+      "salt": "1e3774ce5e6b07717a9af700",
+      "status": "revoked",
+      "createdAt": 1791294219202,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Disable Test"
+    },
+    {
+      "id": "sc_131d49e092826331",
+      "code": "NEST-NU7H-6QXC",
+      "codeHash": "038486f8d81bb8bd6c9e2cd725c321293a686c1c7e8cfe5ceedd801e823db25f",
+      "salt": "6b121dc0727911122915f8f6",
+      "status": "used",
+      "createdAt": 1791294530205,
+      "usedAt": 1791294540755,
+      "usedBy": "Enrolled Member",
+      "note": "Standard Access Pass"
+    },
+    {
+      "id": "sc_09a56230f4b59f86",
+      "code": "LIVE-XZVW-ECCJ",
+      "codeHash": "60bc2e843a9e8fb911297e8bff7e4a0c4aeaa24a642de131a4fbb65d19baa2e8",
+      "salt": "053755d68acd65f8574b737a",
+      "status": "used",
+      "createdAt": 1791295736155,
+      "usedAt": 1791295740793,
+      "usedBy": "VIP Shopper",
+      "note": "Live Verification"
+    },
+    {
+      "id": "sc_85abc2440333f59a",
+      "code": "LIVE-L4HT-64Q5",
+      "codeHash": "bc3aaa6d94f35a79380430a71753e30e47ccad2b900b81eecee9801a684958bd",
+      "salt": "b33ddf55f7800795bbf928a0",
+      "status": "revoked",
+      "createdAt": 1791295736155,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Live Verification"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "usr_ec3583e8881d50be1caadd21cfce74048a1419c825883c8466a5909dbeeb5d5a",
+      "type": "user",
+      "createdAt": 1791293680738,
+      "expiresAt": 1791898480738,
+      "codeId": "sc_62a6a8362776da31",
+      "userLabel": "TestUser"
+    },
+    {
+      "token": "adm_2b165ff406f38928581ec20ac66836cc001d1574b90367bda834d846cc80430d",
+      "type": "admin",
+      "createdAt": 1791294202347,
+      "expiresAt": 1791380602347
+    },
+    {
+      "token": "usr_259f78a1eff32be40bf8982263d58e409dd07fbc281efd778e70ada22d28c493",
+      "type": "user",
+      "createdAt": 1791294202360,
+      "expiresAt": 1791899002360,
+      "codeId": "sc_95c81639de1f2ba9",
+      "userLabel": "AliceTester"
+    },
+    {
+      "token": "adm_1ce36289e5419375534deecad133f70632f9105f9a263927a3dbd28fd6e35f4d",
+      "type": "admin",
+      "createdAt": 1791294219196,
+      "expiresAt": 1791380619196
+    },
+    {
+      "token": "usr_9cdf1d25137622bd2f780e73e1689d894065a2b11dd67aa4bd22987398246b76",
+      "type": "user",
+      "createdAt": 1791294540755,
+      "expiresAt": 1791899340755,
+      "codeId": "sc_131d49e092826331",
+      "userLabel": "Enrolled Member"
+    },
+    {
+      "token": "adm_df4a74777aba531db278b78bff70ea7c1a0076ba09d7ba57ece3fb8ca2920fae",
+      "type": "admin",
+      "createdAt": 1791295722843,
+      "expiresAt": 1791382122843
+    },
+    {
+      "token": "usr_df926f0e7dea5f2043b5f81420b0678cdb55e45e7b9673befb43e88962147a26",
+      "type": "user",
+      "createdAt": 1791295740793,
+      "expiresAt": 1791900540793,
+      "codeId": "sc_09a56230f4b59f86",
+      "userLabel": "VIP Shopper"
+    },
+    {
+      "token": "adm_e5a11d9b3a833617a7a581b6f529d07fd67c013f73d2cd318b0c5a0627939f6c",
+      "type": "admin",
+      "createdAt": 1791295775480,
+      "expiresAt": 1791382175480
+    },
+    {
+      "token": "adm_d6227505edebbefed2b24fd1f5bf38c990a88744a1930625696ac330b4b5fca7",
+      "type": "admin",
+      "createdAt": 1791295791348,
+      "expiresAt": 1791382191348
+    }
+  ]
+}

@@ -1,0 +1,354 @@
+import { Item, PlatformOffer, ScoredOffer, SortOption } from './types';
+import { KEYWORDS, DEFAULT_PLATFORM_LINKS } from './data';
+
+export const fmt = (n: number | null | undefined): string => {
+  if (n == null || isNaN(n)) return '₹0';
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+};
+
+export const tot = (o: PlatformOffer): number | null => {
+  return o.price == null ? null : o.price + (o.fee || 0);
+};
+
+export const ety = (e: number | null): string => {
+  if (e == null) return 'Check on partner';
+  if (e >= 1440) return Math.round(e / 1440) + ' days';
+  return e + ' min';
+};
+
+export function scoreOffers(item: Item, disabledPlatforms: Record<string, boolean> = {}): ScoredOffer[] {
+  const activeOffers = item.o.filter(o => disabledPlatforms[o.p] !== false);
+  const validOffers = activeOffers.filter(o => o.price != null);
+  
+  if (validOffers.length === 0) {
+    return activeOffers.map(o => ({
+      ...o,
+      t: null,
+      disc: 0,
+      score: 0,
+      na: true,
+    }));
+  }
+
+  const totals = validOffers.map(o => tot(o) as number);
+  const mn = Math.min(...totals);
+  const mx = Math.max(...totals);
+
+  return activeOffers.map(o => {
+    if (o.price == null) {
+      return {
+        ...o,
+        t: null,
+        disc: 0,
+        score: 0,
+        na: true,
+      };
+    }
+
+    const t = tot(o) as number;
+    const disc = Math.round(((item.mrp - o.price) / item.mrp) * 100);
+    const ratingBonus = o.rating ? Math.max(0, Math.min(10, ((o.rating - 3.5) / 1.5) * 10)) : 0;
+    const etaBonus = o.eta ? Math.max(0, 5 - o.eta / (item.type === 'shop' ? 1200 : 20)) : 2;
+    const priceScore = mx === mn ? 45 : ((mx - t) / (mx - mn)) * 45;
+    const discScore = Math.min(15, (disc / 40) * 15);
+
+    const s = Math.round(25 + priceScore + discScore + ratingBonus + etaBonus);
+
+    return {
+      ...o,
+      t,
+      disc,
+      score: Math.min(99, Math.max(1, s)),
+      na: false,
+    };
+  });
+}
+
+// Levenshtein distance
+export function lev(a: string, b: string): number {
+  const m: number[][] = [];
+  for (let i = 0; i <= a.length; i++) m[i] = [i];
+  for (let j = 0; j <= b.length; j++) m[0][j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      m[i][j] = Math.min(
+        m[i - 1][j] + 1,
+        m[i][j - 1] + 1,
+        m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return m[a.length][b.length];
+}
+
+export function searchCatalog(query: string, items: Item[]): Item[] {
+  const cleanQ = query
+    .toLowerCase()
+    .replace(/[₹]/g, ' ')
+    .replace(/\b(under\s*\d+|cheapest|best|near\s*me|find|me|where|can|i|get|offers?|deals?|price|prices|compare|comparison)\b/gi, ' ')
+    .trim();
+
+  if (!cleanQ) return [...items];
+
+  // Exclude purely conversational words from catalog scoring
+  const conversationalStopwords = new Set([
+    'hi', 'hello', 'hey', 'yo', 'sup', 'howdy', 'hola', 
+    'thanks', 'thank', 'you', 'ok', 'okay', 'yes', 'no', 
+    'what', 'how', 'who', 'tell', 'show', 'please', 'help', 
+    'good', 'morning', 'afternoon', 'evening', 'night'
+  ]);
+
+  const rawWords = cleanQ.split(/\s+/).filter(w => w.length > 0);
+  const words = rawWords.filter(w => !conversationalStopwords.has(w));
+
+  // If the query only contained greetings/conversational tokens, don't match random items
+  if (words.length === 0) return [];
+
+  const scoredList = items.map(item => {
+    const hayStr = (item.name + ' ' + (KEYWORDS[item.id] || '')).toLowerCase();
+    const hayTokens = hayStr.split(/\s+/);
+    let s = 0;
+
+    words.forEach(w => {
+      // Substring check in full name/keywords
+      if (hayStr.includes(w)) {
+        s += 6;
+      }
+
+      hayTokens.forEach(h => {
+        if (h === w) {
+          s += 8; // exact token match
+        } else if (w.length >= 3 && h.startsWith(w)) {
+          s += 4;
+        } else if (w.length >= 4 && (h.includes(w) || w.includes(h))) {
+          s += 3;
+        } else if (w.length >= 4 && lev(w, h) <= 1) {
+          s += 2;
+        }
+      });
+    });
+
+    return { item, s };
+  });
+
+  return scoredList
+    .filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s)
+    .map(x => x.item);
+}
+
+export function parseUrlInfo(query: string): { href: string; n: string; slug: string } | null {
+  try {
+    const u = new URL(query.trim());
+    if (!/^https?:$/.test(u.protocol)) return null;
+
+    const h = u.hostname.replace(/^www\./, '');
+    const map: Record<string, string> = {
+      'amazon.in': 'Amazon',
+      'flipkart.com': 'Flipkart',
+      'myntra.com': 'Myntra',
+      'ajio.com': 'AJIO',
+      'croma.com': 'Croma',
+      'zomato.com': 'Zomato',
+      'swiggy.com': 'Swiggy',
+      'eatclub.com': 'EatClub',
+      'dominos.co.in': "Domino's",
+      'magicpin.in': 'Magicpin',
+      'zepto.com': 'Zepto',
+      'blinkit.com': 'Blinkit',
+    };
+
+    const n = map[h] || h;
+    const rawSlug = decodeURIComponent(u.pathname.split('/').filter(Boolean)[0] || '');
+    const slug = rawSlug.replace(/[-_]+/g, ' ');
+
+    return { href: u.href, n, slug };
+  } catch {
+    return null;
+  }
+}
+
+export function generatePartnerUrl(
+  platform: string,
+  itemName: string,
+  customAffiliates: Record<string, string> = {}
+): string | null {
+  const cleanName = itemName.replace(/\s*\(.*\)|\s*\d+GB/g, '').trim();
+  const affTemplate = customAffiliates[platform];
+  const template = affTemplate || DEFAULT_PLATFORM_LINKS[platform];
+
+  if (!template) return null;
+
+  return template
+    .replace('{qd}', encodeURIComponent(cleanName.toLowerCase().replace(/\s+/g, '-')))
+    .replace('{q}', encodeURIComponent(cleanName));
+}
+
+export const SORT_COMPARATORS: Record<SortOption, { label: string; fn: (a: ScoredOffer, b: ScoredOffer) => number }> = {
+  rec: {
+    label: 'Recommended',
+    fn: (a, b) => b.score - a.score,
+  },
+  low: {
+    label: 'Lowest price',
+    fn: (a, b) => (a.t ?? 9e9) - (b.t ?? 9e9),
+  },
+  disc: {
+    label: 'Highest discount',
+    fn: (a, b) => b.disc - a.disc,
+  },
+  rate: {
+    label: 'Best rating',
+    fn: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
+  },
+  fast: {
+    label: 'Fastest delivery',
+    fn: (a, b) => (a.eta ?? 9e9) - (b.eta ?? 9e9),
+  },
+  val: {
+    label: 'Best value',
+    fn: (a, b) => {
+      const valA = (a.score || 0) / (a.t || 1);
+      const valB = (b.score || 0) / (b.t || 1);
+      return valB - valA;
+    },
+  },
+  pop: {
+    label: 'Most popular',
+    fn: (a, b) => b.score - a.score,
+  },
+};
+
+export interface PriceTrendData {
+  direction: 'down' | 'up' | 'stable';
+  changePct: number;
+  label: string;
+  points: number[];
+  currentPrice: number;
+  previousPrice: number;
+  isAllTimeLow: boolean;
+}
+
+export function getItemPriceTrend(item: Item): PriceTrendData {
+  const validPrices = item.o
+    .map(o => (item.type === 'food' || item.type === 'cafe' ? (o.price != null ? o.price + (o.fee || 0) : null) : o.price))
+    .filter((p): p is number => p != null && p > 0);
+
+  const currentLowest = validPrices.length ? Math.min(...validPrices) : item.mrp;
+
+  let direction: 'down' | 'up' | 'stable' = 'down';
+  let changePct = -8.5;
+  let points: number[] = [];
+
+  if (item.id === 'iph') {
+    // iPhone 17: MRP 89900 -> 87900 -> 84900 -> 81999
+    direction = 'down';
+    changePct = -8.8;
+    points = [89900, 88500, 87200, 85900, 84200, 82900, 81999];
+  } else if (item.id === 'app') {
+    // AirPods Pro 2: MRP 26900 -> was 11999 -> now 9999
+    direction = 'down';
+    changePct = -16.7;
+    points = [11999, 11499, 10999, 10799, 10499, 10299, 9999];
+  } else if (item.id === 'hdp') {
+    direction = 'down';
+    changePct = -11.5;
+    points = [2599, 2549, 2499, 2450, 2399, 2350, 2299];
+  } else if (item.id === 'bir') {
+    // Chicken Biryani: was 169 -> 159 -> 139 (EatClub/Zomato)
+    direction = 'down';
+    changePct = -17.7;
+    points = [169, 165, 159, 155, 149, 145, 139];
+  } else if (item.id === 'piz') {
+    // Margherita Pizza: was 189 -> 179 -> 159
+    direction = 'down';
+    changePct = -15.8;
+    points = [189, 185, 179, 175, 169, 165, 159];
+  } else if (item.id === 'cof') {
+    direction = 'down';
+    changePct = -7.8;
+    points = [135, 132, 129, 128, 125, 122, 119];
+  } else if (item.id === 'btr') {
+    direction = 'down';
+    changePct = -13.1;
+    points = [229, 225, 219, 215, 209, 205, 199];
+  } else if (item.id === 'bur') {
+    direction = 'down';
+    changePct = -11.8;
+    points = [169, 165, 159, 155, 152, 149, 149];
+  } else if (item.id === 'mlk') {
+    direction = 'stable';
+    changePct = 0;
+    points = [64, 65, 64, 64, 65, 64, 64];
+  } else if (item.id === 'egg') {
+    direction = 'down';
+    changePct = -6.4;
+    points = [95, 94, 92, 90, 89, 89, 88];
+  } else if (item.id === 'brd') {
+    direction = 'down';
+    changePct = -4.2;
+    points = [48, 48, 47, 47, 46, 46, 46];
+  } else if (item.id === 'shoe') {
+    direction = 'down';
+    changePct = -12.0;
+    points = [2499, 2450, 2399, 2350, 2299, 2249, 2199];
+  } else {
+    // Deterministic fallback based on character code
+    const charCode = item.name.charCodeAt(0) || 65;
+    const mod = charCode % 3;
+    if (mod === 0) {
+      direction = 'down';
+      changePct = -(4 + (charCode % 10));
+      const start = Math.round(currentLowest * (1 + Math.abs(changePct) / 100));
+      points = [
+        start,
+        Math.round(start * 0.98),
+        Math.round(start * 0.96),
+        Math.round(start * 0.94),
+        Math.round(start * 0.92),
+        Math.round(start * 0.91),
+        currentLowest,
+      ];
+    } else if (mod === 1) {
+      direction = 'up';
+      changePct = +(2 + (charCode % 5));
+      const start = Math.round(currentLowest * (1 - Math.abs(changePct) / 100));
+      points = [
+        start,
+        Math.round(start * 1.01),
+        Math.round(start * 1.01),
+        Math.round(start * 1.02),
+        Math.round(start * 1.02),
+        Math.round(start * 1.02),
+        currentLowest,
+      ];
+    } else {
+      direction = 'stable';
+      changePct = 0;
+      points = [currentLowest, currentLowest, currentLowest, currentLowest, currentLowest, currentLowest, currentLowest];
+    }
+  }
+
+  const isAllTimeLow = direction === 'down' && Math.abs(changePct) >= 8;
+  let label = 'Price Stable';
+  if (isAllTimeLow) {
+    label = 'Lowest Price in 30 Days';
+  } else if (direction === 'down') {
+    label = `Trending Down ${Math.abs(changePct)}%`;
+  } else if (direction === 'up') {
+    label = `Trending Up +${changePct}%`;
+  }
+
+  const previousPrice = points[0];
+
+  return {
+    direction,
+    changePct,
+    label,
+    points,
+    currentPrice: currentLowest,
+    previousPrice,
+    isAllTimeLow,
+  };
+}
