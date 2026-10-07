@@ -26,6 +26,8 @@ export interface PlatformOffer {
   eta: number | null; // in minutes
   fee: number;
   coupon: string | null;
+  directUrl?: string;
+  isVerified?: boolean;
 }
 
 export interface ScoredOffer extends PlatformOffer {
@@ -71,12 +73,49 @@ export interface PriceAlert {
 }
 
 export interface SectionConfig {
+  home: boolean;
   shop: boolean;
   food: boolean;
   qc: boolean;
   deals: boolean;
   coupons: boolean;
   ai: boolean;
+}
+
+export interface DiscoveredOffer {
+  platform: string;
+  productName: string;
+  price: number | null;
+  mrp?: number | null;
+  discountPct?: number;
+  couponCode?: string | null;
+  couponSavings?: number;
+  deliveryFee: number;
+  totalPayable: number | null;
+  directUrl: string;
+  etaMinutes?: number;
+  rating?: number;
+  isVerified: boolean;
+  unverifiedNote?: string;
+}
+
+export interface CrossPlatformAnalysisResult {
+  originalInput: string;
+  isUrl: boolean;
+  sourcePlatform?: string;
+  identifiedItem: string;
+  category: 'shop' | 'food' | 'qc';
+  winner: {
+    platform: string;
+    productName: string;
+    totalPrice: number;
+    savingsVsHighest: number;
+    reason: string;
+    directUrl: string;
+  } | null;
+  offers: DiscoveredOffer[];
+  analysisSummary: string;
+  item?: Item;
 }
 
 export interface AppState {

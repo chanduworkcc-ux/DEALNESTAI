@@ -3,6 +3,7 @@ import { NavView, SectionConfig } from '../types';
 import { CITIES } from '../data';
 import { 
   Home, 
+  Search,
   ShoppingBag, 
   UtensilsCrossed, 
   Zap, 
@@ -50,7 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRefreshPrices,
 }) => {
   const navItems: { id: NavView; label: string; icon: React.ReactNode; isRealTime?: boolean }[] = [
-    { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
+    ...(sections?.home !== false ? [{ id: 'home' as NavView, label: 'Home', icon: <Home className="w-4 h-4" /> }] : []),
+    { id: 'search' as NavView, label: 'Search & Compare', icon: <Search className="w-4 h-4" />, isRealTime: true },
     ...(sections?.shop !== false ? [{ id: 'shop' as NavView, label: 'Shopping', icon: <ShoppingBag className="w-4 h-4" />, isRealTime: true }] : []),
     ...(sections?.food !== false ? [{ id: 'food' as NavView, label: 'Food & Dining', icon: <UtensilsCrossed className="w-4 h-4" />, isRealTime: true }] : []),
     ...(sections?.qc !== false ? [{ id: 'qc' as NavView, label: 'Quick Groceries', icon: <Zap className="w-4 h-4" />, isRealTime: true }] : []),
@@ -63,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="sticky top-0 self-start h-screen w-[240px] p-4 bg-[var(--card)] border-r-2 border-[var(--bd)] flex flex-col gap-3.5 z-30 select-none shadow-[2px_0_0_rgba(18,16,43,0.05)]">
       {/* Brand Logo with Real-Time Tagline */}
       <button
-        onClick={() => onNavigate('home')}
+        onClick={() => onNavigate(sections?.home !== false ? 'home' : 'search')}
         className="flex items-center gap-2.5 text-left bg-transparent border-0 p-1 mb-1 text-[var(--ink)] cursor-pointer group"
       >
         <div className="w-9 h-9 rounded-xl bg-[var(--lime)] border-2 border-[var(--bd)] flex items-center justify-center shadow-[2px_2px_0_var(--bd)] group-hover:translate-x-[-1px] group-hover:translate-y-[-1px] transition-transform">

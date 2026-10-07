@@ -13,8 +13,8 @@
       "salt": "dc917cb5e60633eb3b59668a",
       "status": "used",
       "createdAt": 1791293680736,
-      "usedAt": 1791293680738,
-      "usedBy": "TestUser",
+      "usedAt": 1791362622117,
+      "usedBy": "VIP Shopper",
       "note": "VIP Access Pass #1"
     },
     {
@@ -99,10 +99,10 @@
       "code": "NEST-NU7H-6QXC",
       "codeHash": "038486f8d81bb8bd6c9e2cd725c321293a686c1c7e8cfe5ceedd801e823db25f",
       "salt": "6b121dc0727911122915f8f6",
-      "status": "used",
+      "status": "active",
       "createdAt": 1791294530205,
-      "usedAt": 1791294540755,
-      "usedBy": "Enrolled Member",
+      "usedAt": null,
+      "usedBy": null,
       "note": "Standard Access Pass"
     },
     {
@@ -126,6 +126,17 @@
       "usedAt": null,
       "usedBy": null,
       "note": "Live Verification"
+    },
+    {
+      "id": "sc_e196cf810c3d008f",
+      "code": "NEST-3NUX-XFSP",
+      "codeHash": "fb38eedbd1ffe5766a13bf061541b1113a13e58ea325f74e6ef2b0d9d767d018",
+      "salt": "3bb6797602df7e92bb27d410",
+      "status": "active",
+      "createdAt": 1791361257758,
+      "usedAt": null,
+      "usedBy": null,
+      "note": "Standard Access Pass"
     }
   ],
   "sessions": [
@@ -190,6 +201,30 @@
       "type": "admin",
       "createdAt": 1791295791348,
       "expiresAt": 1791382191348
+    },
+    {
+      "token": "usr_7f6933c69f39e91bb19c7da32f00a1c6ea2896abedc260b08289cadbd8e08c69",
+      "type": "user",
+      "createdAt": 1791361272592,
+      "expiresAt": 1791966072592,
+      "codeId": "sc_e196cf810c3d008f",
+      "userLabel": "Enrolled Member"
+    },
+    {
+      "token": "usr_956432061f8761e41064d45f51bd9fa36b6c0bef01ed5b7d2d9ee6a113e228d4",
+      "type": "user",
+      "createdAt": 1791362600293,
+      "expiresAt": 1791967400293,
+      "codeId": "sc_e64cd6b6d4a0afa8",
+      "userLabel": "TestMember"
+    },
+    {
+      "token": "usr_a65511c48c8da2b6f105ad87a03c04e6583af8aa7494341466cab8ff1eab455f",
+      "type": "user",
+      "createdAt": 1791362622117,
+      "expiresAt": 1791967422117,
+      "codeId": "sc_62a6a8362776da31",
+      "userLabel": "VIP Shopper"
     }
   ]
 }

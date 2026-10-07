@@ -16,7 +16,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   sections,
 }) => {
   const items: { id: NavView; label: string; icon: React.ReactNode }[] = [
-    { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
+    ...(sections?.home !== false ? [{ id: 'home' as NavView, label: 'Home', icon: <Home className="w-4 h-4" /> }] : []),
     { id: 'search', label: 'Search', icon: <Search className="w-4 h-4" /> },
     ...(sections?.deals !== false ? [{ id: 'deals' as NavView, label: 'Deals', icon: <Flame className="w-4 h-4" /> }] : []),
     ...(sections?.coupons !== false ? [{ id: 'coupons' as NavView, label: 'Coupons', icon: <Ticket className="w-4 h-4" /> }] : []),

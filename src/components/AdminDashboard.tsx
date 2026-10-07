@@ -28,7 +28,8 @@ import {
   Zap,
   Flame,
   Tag,
-  Bot
+  Bot,
+  Home
 } from 'lucide-react';
 import { SecretCodeItem, SectionConfig, ClickRecord } from '../types';
 import { PLATFORM_COLORS, DEFAULT_PLATFORM_LINKS } from '../data';
@@ -301,6 +302,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     icon: React.ReactNode;
     requiresAdminBadge?: boolean;
   }[] = [
+    {
+      key: 'home',
+      label: 'Homepage & Deals Feed',
+      description: 'Main homepage dashboard showcase, live deals feed, and category shelves.',
+      icon: <Home className="w-4 h-4 text-cyan-400" />,
+    },
     {
       key: 'shop',
       label: 'Shopping & Electronics',

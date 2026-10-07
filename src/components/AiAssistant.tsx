@@ -230,33 +230,96 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   };
 
   const samplePrompts = [
-    'Where is biryani cheapest right now?',
-    'Compare AirPods Pro on Amazon vs Flipkart',
-    'Best dinner under ₹200 delivered fast',
-    'Milk 1L under ₹70 on 10-min apps',
-    'iPhone 17 256GB lowest price across stores',
+    'Find the cheapest iPhone 17',
+    'Compare this product everywhere',
+    'Find the cheapest biryani from this link',
+    'Find this milk cheaper',
+    'Is there a better deal?',
   ];
 
-  // Helper to format simple markdown (bold, lists)
+  // Helper to format simple markdown (bold, lists, links, tables)
   const renderFormattedText = (text: string) => {
-    const paragraphs = text.split('\n');
+    const lines = text.split('\n');
     return (
-      <div className="space-y-1.5 text-xs sm:text-sm">
-        {paragraphs.map((p, pIdx) => {
-          if (!p.trim()) return <div key={pIdx} className="h-1" />;
+      <div className="space-y-1 text-xs sm:text-sm">
+        {lines.map((line, lIdx) => {
+          if (!line.trim()) return <div key={lIdx} className="h-1" />;
 
-          const parts = p.split(/(\*\*.*?\*\*)/g);
-          return (
-            <p key={pIdx} className="leading-relaxed">
-              {parts.map((part, i) => {
-                if (part.startsWith('**') && part.endsWith('**')) {
+          // Check if table row (e.g. | Store | Price |)
+          if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+            const cells = line.split('|').slice(1, -1).map(c => c.trim());
+            // separator line (e.g. |---|---|)
+            if (cells.every(c => /^:?-+:?$/.test(c))) {
+              return <hr key={lIdx} className="border-t border-[var(--bd)]/30 my-1" />;
+            }
+            return (
+              <div
+                key={lIdx}
+                className="grid gap-2 py-1.5 px-2 rounded bg-black/5 dark:bg-white/5 font-mono text-[11px] items-center overflow-x-auto"
+                style={{ gridTemplateColumns: `repeat(${Math.max(cells.length, 1)}, minmax(80px, 1fr))` }}
+              >
+                {cells.map((cell, cIdx) => {
+                  const linkMatch = cell.match(/\[(.*?)\]\((.*?)\)/);
+                  if (linkMatch) {
+                    return (
+                      <a
+                        key={cIdx}
+                        href={linkMatch[2]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--pri)] hover:underline font-bold inline-flex items-center gap-0.5 truncate"
+                      >
+                        <span>{linkMatch[1]}</span>
+                        <ExternalLink className="w-2.5 h-2.5 inline" />
+                      </a>
+                    );
+                  }
                   return (
-                    <strong key={i} className="font-bold text-[var(--ink)]">
-                      {part.slice(2, -2)}
-                    </strong>
+                    <span key={cIdx} className="truncate font-semibold">
+                      {cell.replace(/\*\*/g, '')}
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          // Format links and bold text
+          // First split by markdown link pattern [text](url)
+          const linkPattern = /(\[.*?\]\(.*?\))/g;
+          const linkSegments = line.split(linkPattern);
+
+          return (
+            <p key={lIdx} className="leading-relaxed">
+              {linkSegments.map((seg, sIdx) => {
+                const matchLink = seg.match(/^\[(.*?)\]\((.*?)\)$/);
+                if (matchLink) {
+                  return (
+                    <a
+                      key={sIdx}
+                      href={matchLink[2]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-extrabold text-[var(--pri)] hover:text-[#4121d4] underline inline-flex items-center gap-0.5 mx-0.5"
+                    >
+                      <span>{matchLink[1]}</span>
+                      <ExternalLink className="w-3 h-3 inline" />
+                    </a>
                   );
                 }
-                return part;
+
+                // Inner bold parsing
+                const boldParts = seg.split(/(\*\*.*?\*\*)/g);
+                return boldParts.map((part, bIdx) => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                    return (
+                      <strong key={`${sIdx}-${bIdx}`} className="font-extrabold text-[var(--ink)]">
+                        {part.slice(2, -2)}
+                      </strong>
+                    );
+                  }
+                  return part;
+                });
               })}
             </p>
           );

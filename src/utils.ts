@@ -138,35 +138,139 @@ export function searchCatalog(query: string, items: Item[]): Item[] {
     .map(x => x.item);
 }
 
-export function parseUrlInfo(query: string): { href: string; n: string; slug: string } | null {
+export function extractItemFromUrl(urlString: string): {
+  href: string;
+  n: string;
+  slug: string;
+  itemName: string;
+  category: 'shop' | 'food' | 'qc';
+} | null {
   try {
-    const u = new URL(query.trim());
+    const u = new URL(urlString.trim());
     if (!/^https?:$/.test(u.protocol)) return null;
 
-    const h = u.hostname.replace(/^www\./, '');
+    const h = u.hostname.replace(/^www\./, '').toLowerCase();
     const map: Record<string, string> = {
       'amazon.in': 'Amazon',
+      'amazon.com': 'Amazon',
       'flipkart.com': 'Flipkart',
+      'meesho.com': 'Meesho',
       'myntra.com': 'Myntra',
       'ajio.com': 'AJIO',
       'croma.com': 'Croma',
+      'reliancedigital.in': 'Reliance Digital',
       'zomato.com': 'Zomato',
       'swiggy.com': 'Swiggy',
       'eatclub.com': 'EatClub',
       'dominos.co.in': "Domino's",
+      'dominos.com': "Domino's",
       'magicpin.in': 'Magicpin',
       'zepto.com': 'Zepto',
+      'zeptonow.com': 'Zepto',
       'blinkit.com': 'Blinkit',
+      'bigbasket.com': 'BigBasket',
+      'jiomart.com': 'JioMart',
     };
 
-    const n = map[h] || h;
-    const rawSlug = decodeURIComponent(u.pathname.split('/').filter(Boolean)[0] || '');
-    const slug = rawSlug.replace(/[-_]+/g, ' ');
+    let platform = map[h] || h;
+    if (h.includes('swiggy.com') && u.pathname.includes('/instamart')) {
+      platform = 'Instamart';
+    }
 
-    return { href: u.href, n, slug };
+    // 1. Check query parameters first
+    const qParam = u.searchParams.get('dish') || 
+                   u.searchParams.get('q') || 
+                   u.searchParams.get('query') || 
+                   u.searchParams.get('product') || 
+                   u.searchParams.get('item');
+
+    // 2. Parse pathname segments
+    const segments = u.pathname.split('/').filter(Boolean);
+    const ignoredPrefixes = new Set(['p', 'dp', 'gp', 'product', 'products', 'restaurants', 'city', 'prn', 'prid', 'buy', 'pd', 'ps', 'order', 'menu', 'search', 's']);
+    const meaningfulSegments = segments.filter(s => !ignoredPrefixes.has(s.toLowerCase()));
+
+    // Find longest meaningful segment which usually holds product/dish title
+    const bestSegment = meaningfulSegments.sort((a, b) => b.length - a.length)[0] || segments[0] || '';
+    const rawTarget = qParam || bestSegment;
+
+    // Clean up slug
+    let cleaned = decodeURIComponent(rawTarget)
+      .replace(/[?#].*$/, '')
+      .replace(/\/dp\/[A-Z0-9]+.*$/i, '')
+      .replace(/\/p\/itm[a-z0-9]+.*$/i, '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b(pid|itm|ref|tag|ascsubtag|cid|qid)=[a-zA-Z0-9_-]+/gi, '')
+      .trim();
+
+    // Specific domain entity extractions
+    const lowerClean = cleaned.toLowerCase();
+    let category: 'shop' | 'food' | 'qc' = 'shop';
+    let itemName = cleaned;
+
+    if (platform === 'Swiggy' || platform === 'Zomato' || platform === 'EatClub' || platform === "Domino's" || platform === 'Magicpin' || lowerClean.includes('biryani') || lowerClean.includes('pizza') || lowerClean.includes('burger') || lowerClean.includes('chicken') || lowerClean.includes('food')) {
+      category = 'food';
+      if (lowerClean.includes('biryani')) {
+        itemName = lowerClean.includes('mutton') ? 'Mutton Biryani' : 'Chicken Dum Biryani';
+      } else if (lowerClean.includes('pizza') || platform === "Domino's") {
+        itemName = 'Margherita Pizza';
+      } else if (lowerClean.includes('burger')) {
+        itemName = 'Crispy Chicken Burger';
+      } else if (lowerClean.includes('coffee')) {
+        itemName = 'Iced Cold Coffee';
+      } else {
+        // Capitalize words
+        itemName = cleaned.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') || 'Restaurant Meal';
+      }
+    } else if (platform === 'Zepto' || platform === 'Blinkit' || platform === 'Instamart' || platform === 'BigBasket' || lowerClean.includes('milk') || lowerClean.includes('dairy') || lowerClean.includes('grocery') || lowerClean.includes('bread') || lowerClean.includes('egg')) {
+      category = 'qc';
+      if (lowerClean.includes('milk') || lowerClean.includes('amul')) {
+        itemName = 'Amul Taaza Toned Milk 1L';
+      } else if (lowerClean.includes('egg')) {
+        itemName = 'Farm Fresh Eggs (12 pcs)';
+      } else {
+        itemName = cleaned.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') || 'Grocery Essential';
+      }
+    } else {
+      category = 'shop';
+      if (lowerClean.includes('iphone 17') || (lowerClean.includes('iphone') && lowerClean.includes('17'))) {
+        itemName = 'iPhone 17 256GB';
+      } else if (lowerClean.includes('airpod') || lowerClean.includes('earbud')) {
+        itemName = 'AirPods Pro (2nd gen)';
+      } else if (lowerClean.includes('headphone')) {
+        itemName = 'Wireless Headphones ANC';
+      } else if (lowerClean.includes('shoe') || lowerClean.includes('running') || lowerClean.includes('sneaker')) {
+        itemName = 'Running Shoes Pro';
+      } else {
+        itemName = cleaned.split(' ').slice(0, 6).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+
+    if (!itemName || itemName.length < 2) {
+      itemName = 'Featured Item';
+    }
+
+    return {
+      href: u.href,
+      n: platform,
+      slug: cleaned,
+      itemName,
+      category,
+    };
   } catch {
     return null;
   }
+}
+
+export function parseUrlInfo(query: string): { href: string; n: string; slug: string; itemName?: string; category?: 'shop' | 'food' | 'qc' } | null {
+  const extracted = extractItemFromUrl(query);
+  if (!extracted) return null;
+  return {
+    href: extracted.href,
+    n: extracted.n,
+    slug: extracted.slug,
+    itemName: extracted.itemName,
+    category: extracted.category,
+  };
 }
 
 export function generatePartnerUrl(

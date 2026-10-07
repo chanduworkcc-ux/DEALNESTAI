@@ -181,10 +181,8 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 setShowSuggestions(false);
-                if (query.startsWith('http') && onOpenLinkInspector) {
-                  onOpenLinkInspector(query);
-                } else {
-                  onSearch(query);
+                if (query.trim()) {
+                  onSearch(query.trim());
                 }
               }
             }}
@@ -248,10 +246,8 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({
             type="button"
             onClick={() => {
               setShowSuggestions(false);
-              if (query.startsWith('http') && onOpenLinkInspector) {
-                onOpenLinkInspector(query);
-              } else {
-                onSearch(query);
+              if (query.trim()) {
+                onSearch(query.trim());
               }
             }}
             className="dn-btn py-2 px-3 sm:px-5 text-sm sm:text-base font-bold"

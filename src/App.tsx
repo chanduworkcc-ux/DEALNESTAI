@@ -35,7 +35,14 @@ import { AccountView } from './components/AccountView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLoginView } from './components/AdminLoginView';
 import { EnrollmentLandingView } from './components/EnrollmentLandingView';
-import { EnrolledUser } from './types';
+import { EnrolledUser, CrossPlatformAnalysisResult } from './types';
+import { 
+  Trophy, 
+  ExternalLink, 
+  CheckCircle2, 
+  Sparkles, 
+  Loader2 
+} from 'lucide-react';
 import { 
   PriceAlertModal, 
   AuthModal, 
@@ -84,6 +91,8 @@ export default function App() {
   const [searchCategoryTab, setSearchCategoryTab] = useState<'all' | 'shop' | 'food' | 'qc'>('all');
   const [currentSort, setCurrentSort] = useState<SortOption>('rec');
   const [dealsBudgetCap, setDealsBudgetCap] = useState<number>(0);
+  const [crossPlatformResult, setCrossPlatformResult] = useState<CrossPlatformAnalysisResult | null>(null);
+  const [isAnalyzingQuery, setIsAnalyzingQuery] = useState<boolean>(false);
 
   // Live feed & real-time sync
   const [tickerText, setTickerText] = useState<string>('⚡ Google Shopping Analysis Live: iPhone 17 on Flipkart ₹81,999 vs Amazon ₹82,900 (Save ₹901 on Flipkart!)');
@@ -204,7 +213,7 @@ export default function App() {
     localStorage.setItem('dealnest_user_token', token);
     localStorage.setItem('dealnest_enrolled_user', JSON.stringify(user));
     setState(prev => ({ ...prev, user: user.name }));
-    setView('home');
+    setView(activeSections.home !== false ? 'home' : 'search');
     showToast(`Access granted! Welcome, ${user.name}.`);
   };
 
@@ -358,6 +367,7 @@ export default function App() {
   };
 
   const defaultSections: SectionConfig = {
+    home: true,
     shop: true,
     food: true,
     qc: true,
@@ -380,11 +390,27 @@ export default function App() {
         [sec]: enabled,
       },
     }));
+    if (sec === 'home' && !enabled && view === 'home') {
+      setView('search');
+    }
     showToast(`${sec.toUpperCase()} section is now ${enabled ? 'Activated' : 'Hidden'} by Admin!`);
   };
 
+  // Automatically route away from homepage if admin hidden
+  useEffect(() => {
+    if (view === 'home' && activeSections.home === false) {
+      setView('search');
+    }
+  }, [view, activeSections.home]);
+
   // Actions
   const handleNavigate = (newView: NavView) => {
+    if (newView === 'home' && activeSections.home === false) {
+      setView('search');
+      showToast('Homepage is hidden by administrator. Browsing Live Deals & Search.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setView(newView);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -427,8 +453,9 @@ export default function App() {
   };
 
   const handleGetDeal = (item: Item, platform: string) => {
+    const targetOffer = item.o.find(o => o.p === platform);
     const clickId = 'clk_' + Math.random().toString(36).substring(2, 9);
-    const destinationUrl = generatePartnerUrl(platform, item.name, state.aff);
+    const destinationUrl = targetOffer?.directUrl || generatePartnerUrl(platform, item.name, state.aff);
 
     // Record outbound click for affiliate analytics
     const clickRecord: ClickRecord = {
@@ -452,8 +479,6 @@ export default function App() {
       });
       return;
     }
-
-    const targetOffer = item.o.find(o => o.p === platform);
 
     // Present verified outbound link and coupon guidance in iframe-safe modal
     setOutboundData({
@@ -520,18 +545,73 @@ export default function App() {
     return parseUrlInfo(searchQuery);
   }, [searchQuery]);
 
+  // Deep Cross-Platform Search & URL Analysis API integration
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setCrossPlatformResult(null);
+      setIsAnalyzingQuery(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAnalyzingQuery(true);
+
+    const controller = new AbortController();
+    fetch('/api/deals/analyze-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: trimmed,
+        location: state.loc,
+      }),
+      signal: controller.signal,
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data && data.success && data.result) {
+          setCrossPlatformResult(data.result);
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.warn('Cross-platform search analysis notice:', err);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsAnalyzingQuery(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [searchQuery, state.loc]);
+
   const searchResults = useMemo(() => {
-    const effectiveQuery = urlInfo ? urlInfo.slug : searchQuery;
+    const effectiveQuery = urlInfo ? (urlInfo.itemName || urlInfo.slug) : searchQuery;
     const matched = searchCatalog(effectiveQuery, items);
 
-    return matched.filter(item => {
+    const combined = [...matched];
+    if (crossPlatformResult && crossPlatformResult.item) {
+      const alreadyIncluded = combined.some(
+        it => it.name.toLowerCase() === crossPlatformResult.item?.name.toLowerCase()
+      );
+      if (!alreadyIncluded) {
+        combined.unshift(crossPlatformResult.item);
+      }
+    }
+
+    return combined.filter(item => {
       if (searchCategoryTab === 'all') return true;
       if (searchCategoryTab === 'shop') return item.type === 'shop';
       if (searchCategoryTab === 'food') return item.type === 'food' || item.type === 'cafe';
       if (searchCategoryTab === 'qc') return item.type === 'qc';
       return true;
     });
-  }, [searchQuery, urlInfo, items, searchCategoryTab]);
+  }, [searchQuery, urlInfo, items, searchCategoryTab, crossPlatformResult]);
 
   // Loading state while checking session validity with backend
   if (isVerifyingSession) {
@@ -895,57 +975,266 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Real-time Scanning Indicator */}
+                {isAnalyzingQuery && (
+                  <div className="p-4 rounded-2xl bg-[var(--card)] border-2 border-[var(--bd)] shadow-[3px_3px_0_var(--bd)] flex items-center gap-3 animate-pulse">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--lime)] border-2 border-[var(--bd)] flex items-center justify-center font-bold flex-shrink-0">
+                      <Sparkles className="w-5 h-5 text-[#12102b] animate-spin" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[var(--ink)]">
+                          Real-Time Cross-Platform Scanner Active
+                        </span>
+                        <span className="bg-[#ccff00] text-[#12102b] text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-black/20">
+                          Live {state.loc}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--mut)] truncate">
+                        Analyzing input & scanning Amazon, Flipkart, Swiggy, Zomato, Zepto, Blinkit for best deals...
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cross-Platform Search & URL Analysis Card with Best Deal Winner */}
+                {crossPlatformResult && (
+                  <div className="dn-card p-5 sm:p-6 bg-[var(--card)] border-2 border-[var(--bd)] shadow-[5px_5px_0_var(--bd)] space-y-5">
+                    {/* Header with input analysis badge */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-2 border-[var(--bd)]">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {crossPlatformResult.isUrl ? (
+                            <span className="bg-[#5b3df5] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-[var(--bd)] flex items-center gap-1">
+                              <span>🔗 Analyzed {crossPlatformResult.sourcePlatform || 'Store'} Link</span>
+                            </span>
+                          ) : (
+                            <span className="bg-[#5b3df5] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-[var(--bd)]">
+                              ⚡ Multi-Platform Deal Search
+                            </span>
+                          )}
+                          <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Verified Real-Time Data</span>
+                          </span>
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-black font-display text-[var(--ink)] tracking-tight">
+                          Exact Match: {crossPlatformResult.identifiedItem}
+                        </h2>
+                        <p className="text-xs text-[var(--mut)] mt-0.5">
+                          {crossPlatformResult.isUrl
+                            ? `Extracted from ${crossPlatformResult.sourcePlatform || 'URL'} and cross-searched across ${crossPlatformResult.offers.length} competing platforms in ${state.loc}.`
+                            : `Cross-searched across ${crossPlatformResult.offers.length} major shopping, food, and grocery platforms in ${state.loc}.`}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        <span className="text-[11px] font-mono text-[var(--mut)] bg-[var(--bg)] px-2.5 py-1 rounded-lg border border-[var(--bd)]">
+                          {crossPlatformResult.offers.length} Platforms Live
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* WINNER SPOTLIGHT BANNER ("Best Deal") */}
+                    {crossPlatformResult.winner && (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[var(--lime)]/20 via-[var(--lime)]/10 to-transparent border-2 border-[var(--bd)] shadow-[3px_3px_0_var(--bd)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-[var(--lime)] border-2 border-[var(--bd)] flex items-center justify-center shadow-[2px_2px_0_var(--bd)] flex-shrink-0">
+                            <Trophy className="w-6 h-6 text-[#12102b]" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="bg-[#12102b] text-[var(--lime)] text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                                🏆 WINNER — BEST AVAILABLE DEAL
+                              </span>
+                              {crossPlatformResult.winner.savingsVsHighest > 0 && (
+                                <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                  Save ₹{crossPlatformResult.winner.savingsVsHighest.toLocaleString('en-IN')} vs highest store
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-baseline gap-2 mt-1">
+                              <span className="text-2xl sm:text-3xl font-black font-display text-[var(--ink)]">
+                                {crossPlatformResult.winner.platform}
+                              </span>
+                              <span className="text-xl sm:text-2xl font-black text-[#5b3df5]">
+                                ₹{crossPlatformResult.winner.totalPrice.toLocaleString('en-IN')}
+                              </span>
+                              <span className="text-xs text-[var(--mut)] font-bold">
+                                (Final Landed Price)
+                              </span>
+                            </div>
+                            <p className="text-xs text-[var(--ink)] font-semibold mt-1">
+                              💡 <span className="font-bold">Why this won:</span> {crossPlatformResult.winner.reason}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (crossPlatformResult.winner?.directUrl) {
+                              setOutboundData({
+                                platform: crossPlatformResult.winner.platform,
+                                url: crossPlatformResult.winner.directUrl,
+                                itemName: crossPlatformResult.winner.productName,
+                                currentPrice: crossPlatformResult.winner.totalPrice,
+                              });
+                            }
+                          }}
+                          className="dn-btn text-xs sm:text-sm py-2.5 px-5 font-black whitespace-nowrap self-start md:self-center flex items-center gap-2 cursor-pointer shadow-[3px_3px_0_var(--bd)]"
+                        >
+                          <span>Get Best Deal on {crossPlatformResult.winner.platform}</span>
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* All Discovered Platform Offers Grid */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-extrabold text-[var(--ink)] uppercase tracking-wider">
+                          All Discovered Platform Offers ({crossPlatformResult.offers.length})
+                        </h3>
+                        <span className="text-[11px] text-[var(--mut)]">
+                          Sorted by lowest total payable checkout price
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {crossPlatformResult.offers.map((offer, idx) => {
+                          const isWinner = crossPlatformResult.winner?.platform === offer.platform;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between gap-3 ${
+                                isWinner
+                                  ? 'bg-[var(--card)] border-[#5b3df5] shadow-[4px_4px_0_#5b3df5]'
+                                  : 'bg-[var(--card)] border-[var(--bd)] shadow-[3px_3px_0_var(--bd)]'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2 font-black text-sm text-[var(--ink)]">
+                                    <span
+                                      className="w-3 h-3 rounded-full border border-black/20"
+                                      style={{ backgroundColor: PLATFORM_COLORS[offer.platform] || '#5b3df5' }}
+                                    />
+                                    <span>{offer.platform}</span>
+                                    {isWinner && (
+                                      <span className="bg-[#ccff00] text-[#12102b] text-[9px] font-black uppercase px-1.5 py-0.2 rounded">
+                                        Best Deal
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                    ✓ Verified
+                                  </span>
+                                </div>
+
+                                <div className="text-xs text-[var(--mut)] font-semibold mb-2 line-clamp-1">
+                                  {offer.productName}
+                                </div>
+
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-xl font-black text-[var(--ink)]">
+                                    ₹{offer.totalPayable?.toLocaleString('en-IN')}
+                                  </span>
+                                  {offer.mrp && offer.mrp > (offer.price || 0) && (
+                                    <span className="text-xs line-through text-[var(--mut)]">
+                                      ₹{offer.mrp.toLocaleString('en-IN')}
+                                    </span>
+                                  )}
+                                  {(offer.discountPct || 0) > 0 && (
+                                    <span className="text-[10px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded">
+                                      {offer.discountPct}% OFF
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-2 space-y-1 text-[11px] text-[var(--mut)]">
+                                  <div className="flex items-center justify-between">
+                                    <span>Delivery fee:</span>
+                                    <span className="font-bold text-[var(--ink)]">
+                                      {offer.deliveryFee === 0 ? 'FREE' : `₹${offer.deliveryFee}`}
+                                    </span>
+                                  </div>
+                                  {offer.couponCode && (
+                                    <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 font-bold">
+                                      <span>Coupon:</span>
+                                      <span className="truncate max-w-[140px]">{offer.couponCode}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-[var(--bd)]/40 flex items-center justify-between gap-2">
+                                <span className="text-[10px] text-[var(--mut)] font-mono">
+                                  {offer.etaMinutes ? `${offer.etaMinutes >= 60 ? Math.round(offer.etaMinutes/60) + 'h' : offer.etaMinutes + 'm'} ETA` : 'Direct Link'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOutboundData({
+                                      platform: offer.platform,
+                                      url: offer.directUrl,
+                                      itemName: offer.productName,
+                                      couponCode: offer.couponCode || null,
+                                      currentPrice: offer.totalPayable,
+                                    });
+                                  }}
+                                  className="dn-btn text-xs py-1.5 px-3 font-bold flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <span>Direct {offer.platform}</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Search Results Display */}
                 {searchResults.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {searchResults.map(item => (
-                      <DealCard
-                        key={item.id}
-                        item={item}
-                        isSaved={state.saved.includes(item.id)}
-                        onToggleSave={handleToggleSave}
-                        onPriceAlert={setActiveAlertItem}
-                        onViewHistory={setActiveHistoryItem}
-                        onShare={handleShare}
-                        onGetDeal={handleGetDeal}
-                        disabledPlatforms={state.plat}
-                        demoMode={state.demo}
-                        flashingOfferKey={flashingKey}
-                      />
-                    ))}
+                  <div className="space-y-4">
+                    {crossPlatformResult && (
+                      <h3 className="text-base font-extrabold font-display text-[var(--ink)]">
+                        Interactive Deal Cards & Price Trend Graph
+                      </h3>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {searchResults.map(item => (
+                        <DealCard
+                          key={item.id}
+                          item={item}
+                          isSaved={state.saved.includes(item.id)}
+                          onToggleSave={handleToggleSave}
+                          onPriceAlert={setActiveAlertItem}
+                          onViewHistory={setActiveHistoryItem}
+                          onShare={handleShare}
+                          onGetDeal={handleGetDeal}
+                          disabledPlatforms={state.plat}
+                          demoMode={state.demo}
+                          flashingOfferKey={flashingKey}
+                        />
+                      ))}
+                    </div>
                   </div>
-                ) : urlInfo ? (
-                  <div className="dn-card text-center p-8 max-w-lg mx-auto space-y-4">
-                    <h2 className="text-xl font-bold font-display text-[var(--ink)]">
-                      Link from {urlInfo.n}
-                    </h2>
-                    <p className="text-xs sm:text-sm text-[var(--mut)] leading-relaxed">
-                      “{urlInfo.slug || 'Product'}” isn’t in the local demo catalog yet. Looking up a live automated price from this custom link requires a verified {urlInfo.n} affiliate catalog feed.
-                    </p>
-                    <p className="text-xs font-semibold text-[var(--cor)]">
-                      Price could not be verified automatically.
-                    </p>
-                    <a
-                      href={urlInfo.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="dn-btn text-xs py-2.5 px-5"
-                    >
-                      Open on {urlInfo.n}
-                    </a>
-                  </div>
-                ) : (
+                ) : !crossPlatformResult && !isAnalyzingQuery && (
                   <div className="dn-card text-center p-10 max-w-lg mx-auto space-y-3">
                     <span className="text-4xl block">🔍</span>
                     <h2 className="text-xl font-bold font-display text-[var(--ink)]">
                       No matching deals found
                     </h2>
                     <p className="text-xs sm:text-sm text-[var(--mut)]">
-                      Try searching for “biryani”, “milk”, “pizza”, “coffee”, “iphone”, “airpods”, “headphones”, or “shoes”.
+                      Try searching for “biryani”, “milk”, “pizza”, “coffee”, “iphone”, “airpods”, “headphones”, or pasting any Amazon/Flipkart/Swiggy URL.
                     </p>
                     <button
                       onClick={() => handleSearch('iPhone')}
-                      className="dn-btn dn-btn-secondary text-xs py-2 px-4 font-bold"
+                      className="dn-btn dn-btn-secondary text-xs py-2 px-4 font-bold cursor-pointer"
                     >
                       Explore Popular iPhone Deals
                     </button>

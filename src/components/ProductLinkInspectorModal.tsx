@@ -70,6 +70,29 @@ export const ProductLinkInspectorModal: React.FC<ProductLinkInspectorModalProps>
     setDetectedPlatform(plat);
     const platOffer = matchedItem.o.find(o => o.p === plat);
     setCustomPrice(platOffer?.price || matchedItem.mrp);
+
+    // Deep server-side cross-platform discovery
+    fetch('/api/deals/analyze-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: url }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.success && data.result) {
+          if (data.result.sourcePlatform) {
+            setDetectedPlatform(data.result.sourcePlatform);
+          }
+          if (data.item) {
+            setAnalyzedItem(data.item);
+            const pOffer = data.item.o.find((o: any) => o.p === (data.result.sourcePlatform || plat));
+            if (pOffer && pOffer.price != null) {
+              setCustomPrice(pOffer.price);
+            }
+          }
+        }
+      })
+      .catch(() => {});
   };
 
   React.useEffect(() => {
